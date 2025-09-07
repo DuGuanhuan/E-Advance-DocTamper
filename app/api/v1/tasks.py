@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.core.database import get_db
 from app.services.task_service import TaskService
 from app.services.file_service import FileService
+from app.services.case_service import CaseService
 from app.schemas.task import (
     TaskCreateResponse, TaskDetailResponse, TaskListResponse, 
     TaskConfirmRequest, TaskConfirmResponse
@@ -222,10 +223,26 @@ async def confirm_task(
     updated_task = task_service.update_task_status(task_id, new_status)
     if not updated_task:
         raise HTTPException(status_code=500, detail="状态更新失败")
-    
-    # TODO: 如果是确认伪造，需要归档到案例库
-    # 这部分将在后续的案例库功能中实现
-    
+
+    # 如果确认伪造，则归档到案例库
+    if confirm_data.is_forgery:
+        case_service = CaseService(db)
+        try:
+            case_service.create_case_from_task(
+                task_id=task_id,
+                forgery_types=confirm_data.forgery_types or [],
+                bounding_boxes=[
+                    {"x": b.x, "y": b.y, "width": b.width, "height": b.height}
+                    for b in (confirm_data.annotations or [])
+                ] or (confirm_data.bounding_box and [confirm_data.bounding_box]) or [],
+                notes=confirm_data.notes,
+                confirmed_by=updated_task.assignee or "system",
+                confidence_score=None,  # 可在前端增加评分后再传递
+            )
+        except Exception as e:
+            # 归档失败不阻断状态更新，但记录日志
+            logger.error(f"任务 {task_id} 归档案例失败: {e}")
+
     action = "确认伪造" if confirm_data.is_forgery else "标记为无风险"
     logger.info(f"任务 {task_id} {action}完成，审核意见: {confirm_data.notes}")
     
