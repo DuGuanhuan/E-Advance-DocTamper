@@ -1,0 +1,96 @@
+/* 全局CSS变量 - 与PRD保持一致 */
+:root {
+  --primary-color: #4A90E2;
+  --secondary-color: #F5F7FA;
+  --border-color: #DCE1E6;
+  --text-color: #333;
+  --text-light-color: #777;
+  --high-risk-color: #D0021B;
+  --medium-risk-color: #F5A623;
+  --low-risk-color: #2E7D32;
+  --processing-color: #9B9B9B;
+  --font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --border-radius: 8px;
+}
+
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+/* 容器样式 */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: #fff;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+  margin-top: 24px;
+}
+
+/* 状态标签样式 */
+.status-tag {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  display: inline-block;
+}
+
+.status-tag-processing {
+  background-color: var(--processing-color);
+}
+
+.status-tag-pending {
+  background-color: var(--medium-risk-color);
+}
+
+.status-tag-forgery {
+  background-color: var(--high-risk-color);
+}
+
+.status-tag-safe {
+  background-color: var(--low-risk-color);
+}
+
+/* 页面头部样式 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  font-size: 28px;
+  margin: 0;
+  color: var(--text-color);
+}
+
+/* Element Plus 样式覆盖 */
+.el-button--primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.el-button--primary:hover {
+  background-color: #357ABD;
+  border-color: #357ABD;
+}

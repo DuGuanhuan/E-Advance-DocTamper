@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>确认伪造弹窗 - 预览</title>
+    <style>
+        /* --- 基础样式 (用于页面背景和字体) --- */
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background-color: #F5F7FA;
+            margin: 0;
+            padding: 40px;
+        }
+
+        /* --- 弹窗核心样式 --- */
+        .modal-overlay {
+            /* 在实际项目中，这里通常是 display: none; 通过JS控制显示 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 960px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid #DCE1E6;
+        }
+        .modal-header h3 { margin: 0; font-size: 20px; }
+        .modal-header .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #777; }
+
+        .modal-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            padding: 24px;
+        }
+
+        /* --- 左侧图片标注区 --- */
+        .image-annotation-area h4 { margin-top: 0; }
+        .image-container {
+            position: relative;
+            border: 1px solid #DCE1E6;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .image-container img {
+            display: block;
+            width: 100%;
+        }
+        /* 这是模拟的标注框 */
+        .bounding-box {
+            position: absolute;
+            border: 2px solid #D0021B;
+            background-color: rgba(208, 2, 27, 0.2);
+            cursor: crosshair;
+            /* 标注框的位置和大小 (示例) */
+            top: 45%;
+            left: 30%;
+            width: 40%;
+            height: 15%;
+        }
+        .annotation-instruction {
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+            margin-top: 8px;
+        }
+        
+        /* --- 右侧表单区 --- */
+        .form-area h4 { margin-top: 0; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; }
+        .tags-container { display: flex; flex-wrap: wrap; gap: 10px; }
+        .tag-btn {
+            background-color: #F5F7FA;
+            border: 1px solid #DCE1E6;
+            padding: 6px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .tag-btn:hover { background-color: #eef7ff; border-color: #4A90E2; }
+        .tag-btn.selected { background-color: #4A90E2; color: #fff; border-color: #4A90E2; }
+        
+        .form-group textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid #DCE1E6;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #DCE1E6;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background-color: #F5F7FA;
+        }
+        .btn { padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; border: none; }
+        .btn-secondary { background-color: #fff; color: #555; border: 1px solid #DCE1E6; }
+        .btn-primary { background-color: #D0021B; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>确认伪造并归档案例</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="image-annotation-area">
+                    <h4>1. 框选伪造区域 (可选)</h4>
+                    <div class="image-container">
+                        <img src="https://i.imgur.com/vHqB37x.png" alt="待标注图片">
+                        <div class="bounding-box"></div>
+                    </div>
+                    <p class="annotation-instruction">请在图片上拖拽鼠标，框选出关键的伪造区域</p>
+                </div>
+                <div class="form-area">
+                    <h4>2. 选择伪造类型并说明</h4>
+                    <div class="form-group">
+                        <label>伪造类型 (可多选)</label>
+                        <div class="tags-container">
+                            <button class="tag-btn selected">金额篡改</button>
+                            <button class="tag-btn">日期修改</button>
+                            <button class="tag-btn">公章伪造</button>
+                            <button class="tag-btn">内容拼接</button>
+                            <button class="tag-btn">签名伪造</button>
+                            <button class="tag-btn">其他</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>补充说明 (可选)</label>
+                        <textarea placeholder="请填写详细的判断依据，例如：金额'8'由'3'修改而来，边缘有模糊痕迹..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary">取消</button>
+                <button class="btn btn-primary">确认归档</button>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
