@@ -112,9 +112,20 @@ const handleSizeChange = (size) => {
 }
 
 // 处理任务创建成功
-const handleTaskCreated = (result) => {
-  ElMessage.success(`任务 ${result.task_id} 创建成功`)
-  fetchTasks() // 刷新列表
+const handleTaskCreated = (results) => {
+  // 兼容单个/多个
+  if (Array.isArray(results)) {
+    if (results.length === 1) {
+      ElMessage.success(`任务 ${results[0].task_id} 创建成功`)
+    } else {
+      ElMessage.success(`已创建 ${results.length} 个任务`)
+    }
+  } else if (results && results.task_id) {
+    ElMessage.success(`任务 ${results.task_id} 创建成功`)
+  } else {
+    ElMessage.success('任务创建成功')
+  }
+  fetchTasks()
 }
 
 // 组件挂载时获取数据
@@ -124,13 +135,186 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+  font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid #E4E7ED;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.page-header h2 {
+  margin: 0;
+  color: #303133;
+  font-size: 24px;
+  font-weight: 600;
+  position: relative;
+}
+
+
+.page-header .el-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.page-header .el-button:hover {
+  background: linear-gradient(135deg, #337ecc 0%, #5dade2 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.3);
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid #E4E7ED;
+  overflow: hidden;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
 .pagination-wrapper {
-  margin-top: 20px;
+  margin-top: 24px;
+  padding: 20px 24px;
   display: flex;
   justify-content: center;
+  background: #FAFCFF;
+  border-top: 1px solid #E4E7ED;
 }
 
 :deep(.el-pagination) {
   justify-content: center;
+}
+
+:deep(.el-pagination .el-pager li) {
+  background: white;
+  border: 1px solid #DCDFE6;
+  margin: 0 2px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-pagination .el-pager li:hover) {
+  background: #F0F9FF;
+  border-color: #409EFF;
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  border-color: #409EFF;
+  color: white;
+}
+
+:deep(.el-pagination .btn-prev),
+:deep(.el-pagination .btn-next) {
+  background: white;
+  border: 1px solid #DCDFE6;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-pagination .btn-prev:hover),
+:deep(.el-pagination .btn-next:hover) {
+  background: #F0F9FF;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+:deep(.el-empty) {
+  padding: 60px 20px;
+}
+
+:deep(.el-empty__description) {
+  color: #909399;
+  font-size: 16px;
+  margin-top: 16px;
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  
+  .page-header h2 {
+    font-size: 20px;
+  }
+  
+  .page-header .el-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .pagination-wrapper {
+    padding: 16px;
+  }
+  
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  :deep(.el-pagination .el-pagination__sizes),
+  :deep(.el-pagination .el-pagination__jump) {
+    margin: 4px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+  
+  .page-header {
+    padding: 12px;
+  }
+  
+  .page-header h2 {
+    font-size: 18px;
+  }
+  
+  :deep(.el-pagination) {
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
 }
 </style>

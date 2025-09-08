@@ -142,15 +142,30 @@ const handleSubmit = async () => {
   uploading.value = true
   
   try {
-    const formData = new FormData()
-    fileList.value.forEach(file => {
-      formData.append('files', file.raw)
-    })
+    // 逐文件创建任务：一张图片 = 一个任务
+    const results = []
+    for (const file of fileList.value) {
+      const form = new FormData()
+      form.append('files', file.raw)
+      try {
+        const res = await taskAPI.createTask(form)
+        results.push(res)
+      } catch (err) {
+        console.error('创建任务失败:', file.name, err)
+      }
+    }
 
-    const result = await taskAPI.createTask(formData)
-    
-    ElMessage.success('任务创建成功')
-    emit('success', result)
+    if (results.length > 0) {
+      if (results.length === 1) {
+        ElMessage.success(`任务 ${results[0].task_id} 创建成功`)
+      } else {
+        ElMessage.success(`已创建 ${results.length} 个任务`)
+      }
+      emit('success', results)
+    } else {
+      ElMessage.error('创建任务失败，请重试')
+      return
+    }
     handleClose()
   } catch (error) {
     console.error('上传失败:', error)
