@@ -9,6 +9,10 @@ import os
 import uuid
 from typing import List, Optional
 import mimetypes
+import exifread
+from pyexiv2 import Image
+import piexif
+from PIL import ExifTags
 
 from app.models.image import ImageFile
 from app.core.config import settings
@@ -155,3 +159,53 @@ class FileService:
         except Exception as e:
             logger.error(f"缩略图创建失败: {e}")
             raise e
+
+    def get_exif(self, filename):
+        """获取图片的EXIF信息"""
+        exif_data = {}
+        try:
+            # 打开图片文件
+            with Image.open(filename) as image:
+                # 获取图片的EXIF信息
+                exif_info = image._getexif()
+                if exif_info:
+                    exif_data = {
+                        ExifTags.TAGS.get(tag, tag): value
+                        for tag, value in exif_info.items()
+                    }
+        except IOError:
+            logger.error("无法打开文件或读取EXIF信息")
+        return exif_data
+
+    def check_metadata(self, file_path: str) -> bool:
+        """检查图片元数据是否被修改，并提取所需字段"""
+        exif_data = self.get_exif(file_path)
+        if exif_data is None:
+            return False
+
+        # 提取所需字段
+        original_time = exif_data.get('DateTimeOriginal')
+        digitized_time = exif_data.get('DateTimeDigitized')
+        modified_time = exif_data.get('DateTime')
+        software = exif_data.get('Software')
+
+        # 打印提取的字段
+        logger.info(f"Original Time: {original_time if original_time else 'Not found'}")
+        logger.info(f"Digitized Time: {digitized_time if digitized_time else 'Not found'}")
+        logger.info(f"Modified Time: {modified_time if modified_time else 'Not found'}")
+        logger.info(f"Software: {software if software else 'Not found'}")
+
+        # 检查时间标签是否存在并进行比较
+        if original_time:
+            if digitized_time and digitized_time != original_time:
+                logger.info(f"图片元数据已修改 (Digitized vs Original): {file_path}")
+                return False
+            if modified_time and modified_time != original_time:
+                logger.info(f"图片元数据已修改 (Modified vs Original): {file_path}")
+                return False
+        else:
+            logger.warning(f"无法找到原始时间标签: {file_path}")
+            return False
+
+        logger.info(f"图片元数据未修改: {file_path}")
+        return True

@@ -16,6 +16,7 @@ from app.schemas.task import (
 from app.core.constants import TaskStatus
 from loguru import logger
 
+import os
 router = APIRouter()
 
 class TaskStatusUpdate(BaseModel):
@@ -51,6 +52,19 @@ async def create_task(
         
         logger.info(f"任务创建成功: {task.task_id}, 文件数量: {len(saved_files)}")
         
+        # 元数据检测
+        for image_file in saved_files:
+            file_path = os.path.join("app/static/uploads", image_file.file_path)
+            logger.info(f"检查文件元数据: {image_file.file_id}, 路径: {file_path}")
+            metadata_ok =  file_service.check_metadata(file_path)
+            if not metadata_ok:
+                logger.warning(f"文件元数据异常: {image_file.file_id}, 路径: {file_path}")
+                # 根据需求，可以选择标记任务为异常状态，或通知管理员等
+                # 这里简单记录日志
+                message = f"文件元数据异常: {image_file.file_id}"
+            else:
+                logger.info(f"文件元数据正常: {image_file.file_id}")
+                message = f"文件元数据正常: {image_file.file_id}"
         return TaskCreateResponse(
             task_id=task.task_id,
             status=task.status,
