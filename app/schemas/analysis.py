@@ -2,8 +2,11 @@
 分析报告相关的Pydantic模式
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from typing import ForwardRef
 
 
 class ImageInfo(BaseModel):
@@ -18,12 +21,6 @@ class HistoricalMatch(BaseModel):
     image: ImageInfo
 
 
-class AnalysisReportResponse(BaseModel):
-    """分析报告响应模型"""
-    success: bool = True
-    data: "AnalysisReportData"
-
-
 class AnalysisReportData(BaseModel):
     """分析报告数据模型"""
     task_id: str
@@ -35,6 +32,12 @@ class AnalysisReportData(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
+
+
+class AnalysisReportResponse(BaseModel):
+    """分析报告响应模型"""
+    success: bool = True
+    data: AnalysisReportData
 
 
 class AnalysisDetailItem(BaseModel):
