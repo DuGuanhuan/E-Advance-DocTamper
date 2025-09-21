@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方案三：专用分析视图</title>
+    <style>
+        /* --- 基础样式 (同方案一) --- */
+        :root {
+            --primary-color: #409EFF;
+            --border-color: #DCDFE6;
+            --bg-color: #F5F7FA;
+            --text-color: #303133;
+            --text-secondary-color: #909399;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+        }
+        .header {
+            background-color: #fff;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .breadcrumb {
+            font-size: 14px;
+            color: var(--text-secondary-color);
+            margin-bottom: 20px;
+        }
+        .breadcrumb a {
+            color: var(--text-secondary-color);
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            color: var(--primary-color);
+        }
+        .report-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .image-display {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .image-card {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 16px;
+            text-align: center;
+        }
+        .image-card h3 {
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .image-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            min-height: 300px;
+        }
+        .results-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+        .results-section h3 {
+            font-size: 15px;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .results-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .results-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #EBEEF5;
+        }
+        .results-list li:last-child {
+            border-bottom: none;
+        }
+        .highlight-red { color: #F56C6C; font-weight: 500; }
+        .highlight-green { color: #67C23A; font-weight: 500; }
+
+        /* --- 方案三特定样式 --- */
+        .result-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .result-header:hover {
+            color: var(--primary-color);
+        }
+        .result-header::after {
+            content: '▼';
+            font-size: 10px;
+            transition: transform 0.3s ease;
+        }
+        .expandable.is-open .result-header::after {
+            transform: rotate(180deg);
+        }
+        .analysis-view {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+            padding: 0 16px;
+        }
+        .expandable.is-open .analysis-view {
+            max-height: 800px; /* 设一个足够大的值 */
+            padding: 20px 16px;
+        }
+        .comparison-slider {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .comparison-slider img {
+            display: block;
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+        .slider-before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 50%; /* 默认显示一半 */
+            overflow: hidden;
+            border-right: 2px solid white;
+        }
+        .slider-before img {
+           height: 100%;
+           width: auto;
+           max-width: none; /* 很重要，防止图片被压缩 */
+        }
+        .slider-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            cursor: ew-resize; /* 左右拖动光标 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .slider-handle::before { content: '◀'; }
+        .slider-handle::after { content: '▶'; }
+    </style>
+</head>
+<body>
+
+    <div class="header">智能图像鉴伪辅助平台</div>
+    
+    <div class="main-content">
+        <div class="breadcrumb">
+            <a href="#">审核任务</a> &gt; 分析报告
+        </div>
+        <div class="report-title">
+            分析报告 - 1372500022.jpg (任务ID: TSK-037)
+        </div>
+
+        <div class="image-display">
+            <div class="image-card">
+                <h3>本次上传图片</h3>
+                <img src="https://placehold.co/500x700/ffffff/333333?text=Original\nImage" alt="本次上传图片">
+            </div>
+            <div class="image-card">
+                <h3>历史相似图片 (INV202408015.jpg)</h3>
+                <img src="https://placehold.co/500x700/eeeeee/999999?text=Similar\nImage" alt="历史相似图片">
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h3>检测结果详情</h3>
+            <ul class="results-list">
+                <li>历史相似度比对：发现相似图片(相似度 98.6%)，存在3处关键信息 <span class="highlight-red">不一致</span>。</li>
+                
+                <li class="expandable" id="ai-tamper-item">
+                    <div class="result-header">
+                        <span>AI篡改痕迹检测：在金额“¥8,500.00”区域检测到 <span class="highlight-red">像素级别 涂抹</span> 与 <span class="highlight-red">二次 填充</span> 痕迹。</span>
+                    </div>
+                    <div class="analysis-view">
+                        <h4>篡改区域可视化分析</h4>
+                        <div class="comparison-slider" id="comparison-slider">
+                            <img src="https://placehold.co/500x700/000000/ffffff?text=Analysis%5CnMask" alt="分析蒙版">
+                            <div class="slider-before">
+                                <img src="https://placehold.co/500x700/ffffff/333333?text=Original\nImage" alt="原图">
+                            </div>
+                            <div class="slider-handle"></div>
+                        </div>
+                    </div>
+                </li>
+                
+                <li>文字一致性分析：缴仟伍佰元整 与数字金额“8,500.00”<span class="highlight-green">不符</span>，原始OCR识别可能为“3,500.00”。</li>
+                <li>元数据(EXIF)分析：<span class="highlight-red">修改</span> 软件为 Adobe <span class="highlight-red">Photoshop</span> 23.0。</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- 展开/折叠逻辑 ---
+        const expandableItem = document.getElementById('ai-tamper-item');
+        const header = expandableItem.querySelector('.result-header');
+
+        header.addEventListener('click', () => {
+            expandableItem.classList.toggle('is-open');
+        });
+
+        // --- 对比滑块逻辑 ---
+        const slider = document.getElementById('comparison-slider');
+        const beforeImageContainer = slider.querySelector('.slider-before');
+        const handle = slider.querySelector('.slider-handle');
+
+        let isDragging = false;
+
+        // 鼠标按下或触摸开始
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            // 阻止默认行为，如文本选择
+            e.preventDefault();
+        }
+
+        // 鼠标松开或触摸结束
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        // 鼠标移动或触摸移动
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('touchmove', drag);
+
+        function drag(e) {
+            if (!isDragging) return;
+
+            // 获取鼠标或触摸点的X坐标
+            const clientX = e.clientX || e.touches[0].clientX;
+            
+            // 计算滑块相对于容器的位置
+            const rect = slider.getBoundingClientRect();
+            let position = (clientX - rect.left) / rect.width;
+
+            // 限制位置在 0 到 1 之间
+            position = Math.max(0, Math.min(1, position));
+
+            // 更新前景图的宽度和手柄的位置
+            beforeImageContainer.style.width = position * 100 + '%';
+            handle.style.left = position * 100 + '%';
+        }
+    });
+    </script>
+</body>
+</html>

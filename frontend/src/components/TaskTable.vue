@@ -18,12 +18,12 @@
     
     <el-table-column label="状态" width="120">
       <template #default="{ row }">
-        <el-tag 
-          :class="getStatusInfo(row.status).css_class"
+        <span 
           class="status-tag"
+          :class="getStatusClass(row.status)"
         >
           {{ getStatusInfo(row.status).text }}
-        </el-tag>
+        </span>
       </template>
     </el-table-column>
     
@@ -84,15 +84,60 @@ const handleRowClick = (row) => {
     handleViewReport(row.task_id, row.status)
   }
 }
+
+// 获取状态样式类
+const getStatusClass = (status) => {
+  switch (status) {
+    case 'processing': return 'status-processing'
+    case 'pending_review': return 'status-pending'
+    case 'confirmed_forgery': return 'status-suspected'
+    case 'confirmed_safe': return 'status-safe'
+    default: return 'status-processing'
+  }
+}
+
 </script>
 
 <style scoped>
+/* 状态标签基础样式 */
 .status-tag {
-  border: none !important;
-  border-radius: 16px !important;
-  padding: 4px 12px !important;
-  font-weight: 500 !important;
-  font-size: 12px !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: none;
+  display: inline-block;
+  text-align: center;
+  min-width: 48px;
+  font-weight: 500;
+  color: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.status-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 各种状态的颜色 */
+.status-processing {
+  background-color: #1890ff;
+  border: 1px solid #1890ff;
+}
+
+.status-pending {
+  background-color: #ffa940;
+  border: 1px solid #ffa940;
+}
+
+.status-suspected {
+  background-color: #ff4d4f;
+  border: 1px solid #ff4d4f;
+}
+
+.status-safe {
+  background-color: #52c41a;
+  border: 1px solid #52c41a;
 }
 
 .text-placeholder {
@@ -198,6 +243,7 @@ const handleRowClick = (row) => {
   box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3) !important;
 }
 
+/* 按钮样式（局部覆盖以配合页面风格） */
 :deep(.el-button--success) {
   background: linear-gradient(135deg, #67C23A 0%, #85CE61 100%) !important;
   border: none !important;
@@ -237,30 +283,6 @@ const handleRowClick = (row) => {
   box-shadow: none !important;
 }
 
-/* 状态标签样式 */
-:deep(.el-tag--success) {
-  background: linear-gradient(135deg, #67C23A 0%, #85CE61 100%) !important;
-  border: none !important;
-  color: white !important;
-}
-
-:deep(.el-tag--warning) {
-  background: linear-gradient(135deg, #E6A23C 0%, #F0C78A 100%) !important;
-  border: none !important;
-  color: white !important;
-}
-
-:deep(.el-tag--danger) {
-  background: linear-gradient(135deg, #F56C6C 0%, #F78989 100%) !important;
-  border: none !important;
-  color: white !important;
-}
-
-:deep(.el-tag--info) {
-  background: linear-gradient(135deg, #909399 0%, #B1B3B8 100%) !important;
-  border: none !important;
-  color: white !important;
-}
 
 /* 响应式设计 */
 @media (max-width: 768px) {
@@ -276,8 +298,10 @@ const handleRowClick = (row) => {
   }
   
   .status-tag {
-    padding: 2px 8px !important;
-    font-size: 11px !important;
+    padding: 2px 5px;
+    font-size: 9px;
+    min-width: 40px;
+    border-radius: 6px;
   }
 }
 
@@ -321,6 +345,13 @@ const handleRowClick = (row) => {
   .view-report-link {
     font-size: 12px !important;
     padding: 2px 4px !important;
+  }
+  
+  .status-tag {
+    padding: 1px 4px;
+    font-size: 8px;
+    min-width: 36px;
+    border-radius: 6px;
   }
 }
 </style>

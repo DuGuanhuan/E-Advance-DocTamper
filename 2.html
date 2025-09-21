@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方案二：交互式叠加</title>
+    <style>
+        /* --- 基础样式 (同方案一) --- */
+        :root {
+            --primary-color: #409EFF;
+            --border-color: #DCDFE6;
+            --bg-color: #F5F7FA;
+            --text-color: #303133;
+            --text-secondary-color: #909399;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+        }
+        .header {
+            background-color: #fff;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .breadcrumb {
+            font-size: 14px;
+            color: var(--text-secondary-color);
+            margin-bottom: 20px;
+        }
+        .breadcrumb a {
+            color: var(--text-secondary-color);
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            color: var(--primary-color);
+        }
+        .report-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .image-display {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .image-card {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 16px;
+        }
+        .image-card h3 {
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .results-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+        .results-section h3 {
+            font-size: 15px;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .results-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .results-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #EBEEF5;
+            cursor: pointer;
+        }
+        .results-list li:last-child {
+            border-bottom: none;
+        }
+        .highlight-red { color: #F56C6C; font-weight: 500; }
+        .highlight-green { color: #67C23A; font-weight: 500; }
+        
+        /* --- 方案二特定样式 --- */
+        .image-container {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .image-container img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            min-height: 300px;
+        }
+        .mask-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0; /* 默认隐藏 */
+            pointer-events: none; /* 让鼠标事件穿透 */
+            transition: opacity 0.3s ease-in-out;
+        }
+        .mask-toggle-container {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            margin-right: 8px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+        .image-container.highlight-pulse {
+            box-shadow: 0 0 12px 2px rgba(245, 108, 108, 0.7);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">智能图像鉴伪辅助平台</div>
+    
+    <div class="main-content">
+        <div class="breadcrumb">
+            <a href="#">审核任务</a> &gt; 分析报告
+        </div>
+        <div class="report-title">
+            分析报告 - 1372500022.jpg (任务ID: TSK-037)
+        </div>
+
+        <div class="image-display">
+            <div class="image-card">
+                <h3>本次上传图片</h3>
+                <div class="image-container" id="main-image-container">
+                    <img class="original-image" src="https://placehold.co/500x700/ffffff/333333?text=Original\nImage" alt="本次上传图片">
+                    <img class="mask-overlay" src="https://placehold.co/500x700/ff0000/000000?text=MASK&opacity=50" alt="篡改区域蒙版">
+                </div>
+                <div class="mask-toggle-container">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mask-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span>显示篡改区域</span>
+                </div>
+            </div>
+            <div class="image-card">
+                <h3>历史相似图片 (INV202408015.jpg)</h3>
+                <img src="https://placehold.co/500x700/eeeeee/999999?text=Similar\nImage" alt="历史相似图片">
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h3>检测结果详情</h3>
+            <ul class="results-list">
+                <li>历史相似度比对：发现相似图片(相似度 98.6%)，存在3处关键信息 <span class="highlight-red">不一致</span>。</li>
+                <li id="ai-tamper-result">AI篡改痕迹检测：在金额“¥8,500.00”区域检测到 <span class="highlight-red">像素级别 涂抹</span> 与 <span class="highlight-red">二次 填充</span> 痕迹。</li>
+                <li>文字一致性分析：缴仟伍佰元整 与数字金额“8,500.00”<span class="highlight-green">不符</span>，原始OCR识别可能为“3,500.00”。</li>
+                <li>元数据(EXIF)分析：<span class="highlight-red">修改</span> 软件为 Adobe <span class="highlight-red">Photoshop</span> 23.0。</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('mask-toggle');
+            const maskOverlay = document.querySelector('.mask-overlay');
+            const aiResultRow = document.getElementById('ai-tamper-result');
+            const imageContainer = document.getElementById('main-image-container');
+
+            // 1. 开关控制叠加层显示/隐藏
+            toggle.addEventListener('change', function() {
+                if (this.checked) {
+                    maskOverlay.style.opacity = '0.6'; // 显示叠加层, 60%透明度
+                } else {
+                    maskOverlay.style.opacity = '0'; // 隐藏
+                }
+            });
+
+            // 2. 鼠标悬停结果，高亮图片
+            aiResultRow.addEventListener('mouseover', function() {
+                imageContainer.classList.add('highlight-pulse');
+            });
+            aiResultRow.addEventListener('mouseout', function() {
+                imageContainer.classList.remove('highlight-pulse');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -12,7 +12,7 @@
 
     <!-- 统计信息已移除，根据需求简化页面 -->
 
-    <div class="card">
+    <div class="card white-card">
       <!-- 筛选栏 -->
       <CaseFilterBar
         :forgery-type-options="forgeryTypeOptions"
@@ -197,18 +197,7 @@ onMounted(() => {
   padding: 24px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border: 1px solid #E4E7ED;
-  animation: fadeInUp 0.6s ease-out;
-}
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; background:#fff !important; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); border:1px solid #E4E7ED; animation: fadeInUp 0.6s ease-out; backdrop-filter:none; -webkit-backdrop-filter:none; }
 
 .page-header h2 {
   margin: 0;
@@ -220,14 +209,8 @@ onMounted(() => {
 
 /* 统计展示已移除 */
 
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border: 1px solid #E4E7ED;
-  overflow: hidden;
-  animation: fadeInUp 0.6s ease-out 0.1s both;
-}
+.card { overflow:hidden; animation: fadeInUp 0.6s ease-out 0.1s both; }
+.white-card { background:#fff !important; border:1px solid #E4E7ED; box-shadow:0 4px 12px rgba(0,0,0,0.08); backdrop-filter:none; -webkit-backdrop-filter:none; }
 
 .content-area { padding: 16px; }
 

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
+import asyncio
 
 from app.core.database import get_db
 from app.services.task_service import TaskService
@@ -46,11 +47,19 @@ async def create_task(
         
         # 创建任务
         task = task_service.create_task(assignee=assignee)
-        
         # 保存文件
         saved_files = await file_service.save_multiple_files(files, task.task_id)
-        
-        logger.info(f"任务创建成功: {task.task_id}, 文件数量: {len(saved_files)}")
+
+        # 异步启动 EXIF 处理，完成后切换为待核对
+        try:
+            if saved_files:
+                asyncio.create_task(
+                    task_service.process_exif_after_upload(task.task_id, saved_files[0].file_path)
+                )
+        except Exception as e:
+            logger.warning(f"启动EXIF后台处理失败(不影响创建): {e}")
+
+        logger.info(f"任务创建成功: {task.task_id}, 文件数量: {len(saved_files)})")
         
         return TaskCreateResponse(
             task_id=task.task_id,
@@ -134,9 +143,9 @@ async def update_task_status(
     if not task:
         raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
     
-    # 更新任务状态
-    updated_task = task_service.update_task_status(task_id, update_data.status)
-    if not updated_task:
+    # 使用带日志的状态更新（同步）
+    ok = task_service.update_task_status_with_log(task_id, update_data.status)
+    if not ok:
         raise HTTPException(status_code=400, detail=f"状态更新失败，可能是不允许的状态转换")
     
     return {"status": "success", "message": f"任务状态已更新为: {update_data.status}"}
@@ -152,7 +161,7 @@ async def get_task_status_history(
     - **task_id**: 任务ID
     """
     task_service = TaskService(db)
-    history = await task_service.get_task_status_history(task_id)
+    history = task_service.get_task_status_history(task_id)
     
     return {
         "task_id": task_id,
@@ -219,9 +228,9 @@ async def confirm_task(
     # 根据is_forgery确定新状态
     new_status = TaskStatus.CONFIRMED_FORGERY if confirm_data.is_forgery else TaskStatus.CONFIRMED_SAFE
     
-    # 更新任务状态
-    updated_task = task_service.update_task_status(task_id, new_status)
-    if not updated_task:
+    # 更新任务状态并记录日志
+    ok = task_service.update_task_status_with_log(task_id, new_status)
+    if not ok:
         raise HTTPException(status_code=500, detail="状态更新失败")
 
     # 如果确认伪造，则归档到案例库
@@ -236,7 +245,7 @@ async def confirm_task(
                     for b in (confirm_data.annotations or [])
                 ] or (confirm_data.bounding_box and [confirm_data.bounding_box]) or [],
                 notes=confirm_data.notes,
-                confirmed_by=updated_task.assignee or "system",
+                confirmed_by=(task.assignee or "system"),
                 confidence_score=None,  # 可在前端增加评分后再传递
             )
         except Exception as e:

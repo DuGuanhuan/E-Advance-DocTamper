@@ -8,7 +8,7 @@
       </el-button>
     </div>
 
-    <div class="card">
+    <div class="card white-card">
       <!-- 筛选栏 -->
       <FilterBar @filter="handleFilter" />
       
@@ -139,22 +139,24 @@ onMounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  background-color: #F5F7FA;
+  background: transparent;
   min-height: 100vh;
   font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border: 1px solid #E4E7ED;
-  animation: fadeInUp 0.6s ease-out;
+.page-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 24px; 
+  background: #fff !important; 
+  padding: 24px; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+  border: 1px solid #E4E7ED; 
+  animation: fadeInUp 0.6s ease-out; 
+  backdrop-filter: none; 
+  -webkit-backdrop-filter: none; 
 }
 
 .page-header h2 {
@@ -183,13 +185,11 @@ onMounted(() => {
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border: 1px solid #E4E7ED;
   overflow: hidden;
   animation: fadeInUp 0.6s ease-out 0.1s both;
 }
+
+.white-card { background:#fff !important; border:1px solid #E4E7ED; box-shadow: 0 4px 12px rgba(0,0,0,0.08); backdrop-filter:none; -webkit-backdrop-filter:none; }
 
 .pagination-wrapper {
   margin-top: 24px;

@@ -15,12 +15,77 @@ from app.schemas.task import (
     ImageFileResponse, HistoricalMatch, AIFinding, AnalysisResult
 )
 from loguru import logger
+from app.services.status_service import StatusService
+from app.services.ai_integration_service import ai_service
 
 class TaskService:
     """任务管理服务类"""
     
     def __init__(self, db: Session):
         self.db = db
+    
+    async def start_ai_detection(self, task_id: str, image_path: str) -> bool:
+        """
+        启动AI检测流程
+        
+        Args:
+            task_id: 任务ID
+            image_path: 图像文件路径
+            
+        Returns:
+            是否启动成功
+        """
+        try:
+            logger.info(f"启动AI检测: 任务{task_id}, 图片{image_path}")
+            
+            # 调用AI集成服务进行检测
+            ai_result = await ai_service.analyze_image_complete(image_path, task_id)
+            
+            # 保存AI检测结果到数据库
+            await self._save_ai_detection_result(task_id, ai_result)
+            
+            # 更新任务状态为待审核
+            self.update_task_status(task_id, TaskStatus.PENDING_REVIEW)
+            
+            logger.info(f"AI检测完成: 任务{task_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"AI检测失败: 任务{task_id}, 错误: {e}")
+            # 更新任务状态为失败
+            self.update_task_status(task_id, TaskStatus.FAILED)
+            return False
+    
+    async def _save_ai_detection_result(self, task_id: str, ai_result: dict):
+        """保存AI检测结果到数据库"""
+        try:
+            # 查找或创建分析结果记录
+            from app.models.analysis import AnalysisResult as AnalysisResultModel
+            
+            analysis_record = self.db.query(AnalysisResultModel).filter(
+                AnalysisResultModel.task_id == task_id
+            ).first()
+            
+            if not analysis_record:
+                analysis_record = AnalysisResultModel(
+                    task_id=task_id,
+                    created_at=datetime.now()
+                )
+                self.db.add(analysis_record)
+            
+            # 更新AI检测结果
+            analysis_record.ai_detection_result = ai_result
+            analysis_record.confidence_score = ai_result.get("overall_risk_score", 0.0)
+            analysis_record.processing_time = ai_result.get("processing_time", 0.0)
+            analysis_record.updated_at = datetime.now()
+            
+            self.db.commit()
+            logger.info(f"AI检测结果已保存: 任务{task_id}")
+            
+        except Exception as e:
+            logger.error(f"保存AI检测结果失败: {e}")
+            self.db.rollback()
+            raise
     
     def generate_task_id(self) -> str:
         """生成任务ID (TSK-001格式)"""
@@ -47,7 +112,7 @@ class TaskService:
         
         task = AuditTask(
             task_id=task_id,
-            status=TaskStatus.PROCESSING,
+            status=TaskStatus.PROCESSING.value,
             assignee=assignee or "系统自动分配"
         )
         
@@ -57,6 +122,69 @@ class TaskService:
         
         logger.info(f"创建新任务: {task_id}")
         return task
+
+    async def process_exif_after_upload(self, task_id: str, image_relative_path: str) -> None:
+        """在上传完成后执行 EXIF 分析，保存结果并切换状态为待核对"""
+        try:
+            # 物理路径：上传目录在 settings.upload_dir 下，ImageFile.file_path 已含文件名
+            from app.core.config import settings
+            import os
+            image_path = os.path.join(settings.upload_dir, image_relative_path)
+
+            exif_result = await ai_service.analyze_exif(image_path)
+
+            # 简化展示：始终输出一行。命中编辑软件 → 显示软件；否则输出未检测到编辑软件
+            findings = []
+            software = (exif_result or {}).get("software")
+            tampered_by_software = False
+            for ind in (exif_result.get("risk_indicators") or []):
+                desc = (ind.get("description") or "").lower()
+                if desc.startswith("detected editing software"):
+                    tampered_by_software = True
+                    # 若 software 为空，尝试从描述提取
+                    if not software:
+                        try:
+                            software = ind.get("description").split(":", 1)[1].strip()
+                        except Exception:
+                            pass
+                    break
+
+            if tampered_by_software and software:
+                findings = [AIFinding(type="EXIF", detail=f"检测到编辑软件：{software}")]
+            else:
+                findings = [AIFinding(type="EXIF", detail="图片元数据：未检测到编辑软件信息")]
+
+            # 保存到 AnalysisResult 表（合并到 ai_findings JSON）
+            from app.models.analysis import AnalysisResult as AnalysisResultModel
+            ar = (
+                self.db.query(AnalysisResultModel)
+                .filter(AnalysisResultModel.task_id == task_id)
+                .first()
+            )
+            if not ar:
+                # 生成 result_id
+                result_id = self._generate_result_id()
+                ar = AnalysisResultModel(result_id=result_id, task_id=task_id, ai_findings=[])
+                self.db.add(ar)
+
+            # 覆盖为简化后的单行（或空）
+            ar.ai_findings = [{"type": f.type, "detail": f.detail} for f in findings]
+            self.db.commit()
+            self.db.refresh(ar)
+
+            # 切换任务状态为待核对（写入日志）
+            self.update_task_status_with_log(task_id, TaskStatus.PENDING_REVIEW)
+        except Exception as e:
+            logger.error(f"任务 {task_id} EXIF 处理失败: {e}")
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            # 失败时也尝试置为待核对，避免卡在处理中
+            try:
+                self.update_task_status_with_log(task_id, TaskStatus.PENDING_REVIEW)
+            except Exception:
+                pass
     
     def get_task(self, task_id: str) -> Optional[AuditTask]:
         """根据ID获取任务"""
@@ -134,12 +262,17 @@ class TaskService:
             return None
         
         # 检查状态转换是否允许
-        if not TaskStatusTransition.can_transition(task.status, status):
+        current = task.status
+        try:
+            current_enum = TaskStatus(current) if isinstance(current, str) else current
+        except Exception:
+            current_enum = TaskStatus.PROCESSING
+        if not TaskStatusTransition.can_transition(current_enum, status):
             logger.error(f"不允许的状态转换: {task.status} -> {status}")
             return None
         
         old_status = task.status
-        task.status = status
+        task.status = status.value
         task.updated_at = datetime.utcnow()
         self.db.commit()
         self.db.refresh(task)
@@ -148,7 +281,7 @@ class TaskService:
     
     def get_task_detail(self, task_id: str) -> Optional[TaskDetailResponse]:
         """获取任务详情（包含文件列表和分析结果）"""
-        task = self.db.query(AuditTask).filter(AuditTask.task_id == task_id).first()
+        task = self.get_task(task_id)
         if not task:
             return None
         
@@ -165,9 +298,29 @@ class TaskService:
                 "url": first_file.file_url
             }
         
-        # 生成分析结果（模拟数据）
-        analysis_result = self._generate_analysis_result(task_id)
-        
+        # 优先使用数据库中已有的 AI/EXIF 结果
+        db_findings: Optional[list] = None
+        try:
+            from app.models.analysis import AnalysisResult as AnalysisResultModel
+            ar = (
+                self.db.query(AnalysisResultModel)
+                .filter(AnalysisResultModel.task_id == task_id)
+                .first()
+            )
+            if ar and ar.ai_findings:
+                db_findings = ar.ai_findings
+        except Exception:
+            db_findings = None
+
+        if db_findings:
+            analysis_result = AnalysisResult(
+                historical_matches=[],
+                ai_findings=[AIFinding(type=it.get("type", "EXIF"), detail=it.get("detail", "")) for it in db_findings]
+            )
+        else:
+            # 回退到模拟数据
+            analysis_result = self._generate_analysis_result(task_id)
+
         return TaskDetailResponse(
             task_id=task.task_id,
             status=task.status,
@@ -190,6 +343,21 @@ class TaskService:
             uploaded_image=uploaded_image,
             analysis_result=analysis_result
         )
+
+    def _generate_result_id(self) -> str:
+        """生成分析结果ID (RES-001 格式)"""
+        from app.models.analysis import AnalysisResult as AnalysisResultModel
+        rows = self.db.query(AnalysisResultModel.result_id).filter(
+            AnalysisResultModel.result_id.like("RES-%")
+        ).all()
+        max_num = 0
+        for (rid,) in rows:
+            try:
+                n = int(str(rid).split("-")[1])
+                max_num = max(max_num, n)
+            except Exception:
+                continue
+        return f"RES-{max_num + 1:03d}"
     
     def get_task_stats(self) -> dict:
         """获取任务统计信息"""
@@ -205,32 +373,21 @@ class TaskService:
         
         return stats
     
-    async def update_task_status_with_log(
+    def update_task_status_with_log(
         self,
         task_id: str,
         new_status: TaskStatus,
         changed_by: Optional[str] = None,
-        change_reason: Optional[str] = None
+        change_reason: Optional[str] = None,
     ) -> bool:
-        """
-        更新任务状态并记录日志
-        
-        Args:
-            task_id: 任务ID
-            new_status: 新状态
-            changed_by: 操作人
-            change_reason: 变更原因
-            
-        Returns:
-            bool: 是否更新成功
-        """
-        return await StatusService.update_task_status(
+        """同步版本：更新任务状态并记录日志"""
+        return StatusService.update_task_status(
             self.db, task_id, new_status, changed_by, change_reason
         )
     
-    async def get_task_status_history(self, task_id: str):
-        """获取任务状态变更历史"""
-        return await StatusService.get_status_history(self.db, task_id)
+    def get_task_status_history(self, task_id: str):
+        """获取任务状态变更历史（同步）"""
+        return StatusService.get_status_history(self.db, task_id)
     
     def get_allowed_status_transitions(self, task_id: str) -> List[TaskStatus]:
         """获取任务允许的状态转换"""

@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     upload_dir: str = "app/static/uploads"
     processed_dir: str = "app/static/processed"
     
+    # 相似图检索 - 图片库与向量数据库
+    image_library_dir: str = "app/data/image_library"
+    chroma_db_dir: str = "app/data/chroma_db"
+    chroma_collection_name: str = "image_library"
+    similarity_threshold: float = 0.9  # > 90%
+    
     # AI服务配置
     ai_api_url: str = "http://localhost:9000/api/detect"
     ai_api_key: str = ""
@@ -53,7 +59,9 @@ def ensure_directories():
         settings.upload_dir,
         settings.processed_dir,
         "app/data",
-        "app/logs"
+        "app/logs",
+        settings.image_library_dir,
+        settings.chroma_db_dir
     ]
     
     for directory in directories:

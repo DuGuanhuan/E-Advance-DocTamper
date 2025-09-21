@@ -90,8 +90,8 @@ async def mark_task_violation(
             raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
         
         # 更新任务状态为确认伪造
-        updated_task = task_service.update_task_status(task_id, TaskStatus.CONFIRMED_FORGERY)
-        if not updated_task:
+        ok = task_service.update_task_status_with_log(task_id, TaskStatus.CONFIRMED_FORGERY)
+        if not ok:
             raise HTTPException(status_code=400, detail="状态更新失败")
         
         logger.info(f"任务 {task_id} 已标记为违规")
@@ -131,8 +131,8 @@ async def mark_task_safe(
             raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
         
         # 更新任务状态为确认安全
-        updated_task = task_service.update_task_status(task_id, TaskStatus.CONFIRMED_SAFE)
-        if not updated_task:
+        ok = task_service.update_task_status_with_log(task_id, TaskStatus.CONFIRMED_SAFE)
+        if not ok:
             raise HTTPException(status_code=400, detail="状态更新失败")
         
         logger.info(f"任务 {task_id} 已标记为无风险")

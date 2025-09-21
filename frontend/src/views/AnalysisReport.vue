@@ -23,7 +23,7 @@
 
     <!-- 报告内容 -->
     <div v-else class="report-content">
-      <div class="card">
+    <div class="card">
         <div class="card-header">
           分析报告 - {{ reportData?.uploaded_image?.filename || '未知文件' }} (任务ID: {{ reportData?.task_id || route.params.taskId }})
         </div>
@@ -302,7 +302,6 @@ onMounted(() => {
 
 .analysis-report {
   font-family: var(--font-family);
-  background-color: var(--secondary-color);
   color: var(--text-color);
   line-height: 1.6;
   max-width: 1400px;
@@ -359,11 +358,7 @@ onMounted(() => {
 
 /* 卡片样式 */
 .card {
-  background-color: #fff;
-  border-radius: var(--border-radius);
-  box-shadow: var(--card-shadow);
-  padding: 24px;
-  margin-top: 24px;
+  /* 使用全局玻璃卡片样式 */
 }
 
 .card-header {
@@ -401,7 +396,7 @@ onMounted(() => {
   border-radius: 6px;
   overflow: hidden;
   background-color: #f8f9fa;
-  min-height: 300px;
+  min-height: 40vh; /* 视口自适应，默认更高 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -409,7 +404,7 @@ onMounted(() => {
 
 .analysis-image {
   max-width: 100%;
-  max-height: 300px;
+  max-height: 60vh; /* 更大显示区域，按视口高度适配 */
   object-fit: contain;
   transition: transform 0.3s ease;
 }
@@ -568,6 +563,10 @@ onMounted(() => {
   .card {
     padding: 16px;
   }
+  
+  /* 移动端适配更友好 */
+  .image-container { min-height: 35vh; }
+  .analysis-image { max-height: 50vh; }
   
   .feedback-actions {
     text-align: center;

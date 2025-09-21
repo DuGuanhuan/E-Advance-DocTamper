@@ -1,156 +1,113 @@
 """
-状态管理服务
+状态管理服务（同步版本）
 """
 from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from app.models import AuditTask, StatusLog
-from app.core.constants import TaskStatus, STATUS_TRANSITIONS
-from app.core.database import get_db
+from app.core.constants import TaskStatus, TaskStatusTransition
 from loguru import logger
 
 
 class StatusService:
-    """状态管理服务类"""
-    
+    """状态管理服务类（同步SQLAlchemy会话）"""
+
     @staticmethod
-    async def validate_status_transition(
-        current_status: TaskStatus, 
-        new_status: TaskStatus
+    def validate_status_transition(
+        current_status: TaskStatus | str,
+        new_status: TaskStatus,
     ) -> bool:
-        """
-        验证状态转换是否合法
-        
-        Args:
-            current_status: 当前状态
-            new_status: 目标状态
-            
-        Returns:
-            bool: 是否允许转换
-        """
+        """验证状态转换是否合法"""
+        if isinstance(current_status, str):
+            try:
+                current_status = TaskStatus(current_status)
+            except Exception:
+                return False
         if current_status == new_status:
             return True
-            
-        allowed_transitions = STATUS_TRANSITIONS.get(current_status, [])
-        return new_status in allowed_transitions
-    
+        return TaskStatusTransition.can_transition(current_status, new_status)
+
     @staticmethod
-    async def generate_log_id(db: AsyncSession) -> str:
-        """生成状态日志ID"""
-        result = await db.execute(select(StatusLog.log_id))
-        existing_ids = [row[0] for row in result.fetchall()]
-        
-        if not existing_ids:
+    def generate_log_id(db: Session) -> str:
+        """生成状态日志ID (LOG-001 递增)"""
+        rows = db.query(StatusLog.log_id).all()
+        if not rows:
             return "LOG-001"
-        
-        # 提取数字部分并找到最大值
+
         max_num = 0
-        for log_id in existing_ids:
+        for (log_id,) in rows:
             try:
-                num = int(log_id.split('-')[1])
+                num = int(str(log_id).split("-")[1])
                 max_num = max(max_num, num)
-            except (IndexError, ValueError):
+            except Exception:
                 continue
-        
         return f"LOG-{max_num + 1:03d}"
-    
+
     @staticmethod
-    async def update_task_status(
-        db: AsyncSession,
+    def update_task_status(
+        db: Session,
         task_id: str,
         new_status: TaskStatus,
         changed_by: Optional[str] = None,
-        change_reason: Optional[str] = None
+        change_reason: Optional[str] = None,
     ) -> bool:
-        """
-        更新任务状态并记录日志
-        
-        Args:
-            db: 数据库会话
-            task_id: 任务ID
-            new_status: 新状态
-            changed_by: 操作人
-            change_reason: 变更原因
-            
-        Returns:
-            bool: 是否更新成功
-        """
+        """更新任务状态并记录状态日志"""
         try:
-            # 获取当前任务
-            result = await db.execute(
-                select(AuditTask).where(AuditTask.task_id == task_id)
-            )
-            task = result.scalar_one_or_none()
-            
+            task = db.query(AuditTask).filter(AuditTask.task_id == task_id).first()
             if not task:
                 logger.error(f"任务不存在: {task_id}")
                 return False
-            
+
             old_status = task.status
-            
-            # 验证状态转换
-            if not await StatusService.validate_status_transition(old_status, new_status):
+            if not StatusService.validate_status_transition(old_status, new_status):
                 logger.error(f"非法状态转换: {old_status} -> {new_status}")
                 return False
-            
-            # 更新任务状态
-            task.status = new_status
-            
-            # 创建状态变更日志
-            log_id = await StatusService.generate_log_id(db)
+
+            # 更新任务
+            task.status = new_status.value
+
+            # 写入状态日志
+            log_id = StatusService.generate_log_id(db)
+            # 规范化日志中的状态字符串
+            old_status_value = (
+                old_status.value if isinstance(old_status, TaskStatus) else str(old_status)
+            )
+            new_status_value = new_status.value
+
             status_log = StatusLog(
                 log_id=log_id,
                 task_id=task_id,
-                old_status=old_status.value if old_status else None,
-                new_status=new_status.value,
+                old_status=old_status_value,
+                new_status=new_status_value,
                 changed_by=changed_by,
-                change_reason=change_reason
+                change_reason=change_reason,
             )
-            
             db.add(status_log)
-            await db.commit()
-            
+            db.commit()
+
             logger.info(f"任务状态更新成功: {task_id} {old_status} -> {new_status}")
             return True
-            
         except Exception as e:
-            await db.rollback()
+            db.rollback()
             logger.error(f"状态更新失败: {e}")
             return False
-    
+
     @staticmethod
-    async def get_status_history(
-        db: AsyncSession,
-        task_id: str
-    ) -> List[StatusLog]:
-        """
-        获取任务状态变更历史
-        
-        Args:
-            db: 数据库会话
-            task_id: 任务ID
-            
-        Returns:
-            List[StatusLog]: 状态变更历史列表
-        """
-        result = await db.execute(
-            select(StatusLog)
-            .where(StatusLog.task_id == task_id)
-            .order_by(StatusLog.created_at.desc())
+    def get_status_history(db: Session, task_id: str) -> List[StatusLog]:
+        """获取任务状态变更历史（按时间倒序）"""
+        return (
+            db.query(StatusLog)
+            .filter(StatusLog.task_id == task_id)
+            .order_by(desc(StatusLog.created_at))
+            .all()
         )
-        return result.scalars().all()
-    
+
     @staticmethod
-    async def get_allowed_transitions(
-        current_status: TaskStatus
-    ) -> List[TaskStatus]:
-        """
-        获取当前状态允许的转换状态
-        
-        Args:
-            current_status: 当前状态
-            
-        Returns:
-            List[TaskStatus]: 允许转换的状态列表
-        """
-        return STATUS_TRANSITIONS.get(current_status, [])
+    def get_allowed_transitions(current_status: TaskStatus | str) -> List[TaskStatus]:
+        """获取当前状态允许的转换目标状态"""
+        if isinstance(current_status, str):
+            try:
+                current_status = TaskStatus(current_status)
+            except Exception:
+                return []
+        return TaskStatusTransition.get_allowed_transitions(current_status)

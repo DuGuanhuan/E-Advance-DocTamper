@@ -46,28 +46,27 @@ body {
 
 /* 状态标签样式 */
 .status-tag {
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 4px 12px;
+  border-radius: 999px; /* 胶囊形状 */
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  color: #fff !important; /* 胶囊白字 */
+  border: none !important;
 }
 
-.status-tag-processing {
-  background-color: var(--processing-color);
-}
+/* 胶囊填充色（较之前略微淡化） */
+.status-tag-processing { background: #9b9b9b !important; }
+.status-tag-pending    { background: #f1b650 !important; }
+.status-tag-forgery    { background: #f07b6b !important; }
+.status-tag-safe       { background: #58bf6a !important; }
 
-.status-tag-pending {
-  background-color: var(--medium-risk-color);
-}
-
-.status-tag-forgery {
-  background-color: var(--high-risk-color);
-}
-
-.status-tag-safe {
-  background-color: var(--low-risk-color);
+/* 确保 Element Plus 的 el-tag 不覆盖胶囊外观 */
+.el-tag.status-tag {
+  background-color: inherit !important;
+  color: inherit !important;
+  border: none !important;
 }
 
 /* 页面头部样式 */
@@ -93,4 +92,31 @@ body {
 .el-button--primary:hover {
   background-color: #357ABD;
   border-color: #357ABD;
+}
+
+/* 统一语义按钮配色 */
+/* 状态标签样式 */
+.status-tag {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  display: inline-block;
+}
+
+.status-tag-processing {
+  background-color: var(--processing-color);
+}
+
+.status-tag-pending {
+  background-color: var(--medium-risk-color);
+}
+
+.status-tag-forgery {
+  background-color: var(--high-risk-color);
+}
+
+.status-tag-safe {
+  background-color: var(--low-risk-color);
 }

@@ -1,23 +1,31 @@
-// 任务状态映射 - 与后端保持一致
+// 任务状态映射 - 高对比度配色方案
 export const STATUS_MAP = {
   processing: {
     text: '处理中',
-    color_variable: 'var(--processing-color)',
+    color: '#1e40af',
+    background: '#dbeafe',
+    border: '#93c5fd',
     css_class: 'status-tag-processing'
   },
   pending_review: {
     text: '待核对',
-    color_variable: 'var(--medium-risk-color)',
+    color: '#c2410c',
+    background: '#fed7aa',
+    border: '#fdba74',
     css_class: 'status-tag-pending'
   },
   confirmed_forgery: {
     text: '疑似伪造',
-    color_variable: 'var(--high-risk-color)',
+    color: '#b91c1c',
+    background: '#fecaca',
+    border: '#f87171',
     css_class: 'status-tag-forgery'
   },
   confirmed_safe: {
     text: '无风险',
-    color_variable: 'var(--low-risk-color)',
+    color: '#166534',
+    background: '#bbf7d0',
+    border: '#86efac',
     css_class: 'status-tag-safe'
   }
 }

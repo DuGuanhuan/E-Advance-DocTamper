@@ -10,6 +10,7 @@ import os
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1 import tasks, analysis, cases
+from app.api.v1 import images as images_api
 
 # 导入所有模型以确保它们被注册
 from app.models import AuditTask, ImageFile, AnalysisResult, CaseLibraryEntry
@@ -42,6 +43,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(analysis.router, prefix="/api/v1", tags=["analysis"])
 app.include_router(cases.router, prefix="/api/v1", tags=["cases"])
+app.include_router(images_api.router, prefix="/api/v1", tags=["images"])
 
 @app.on_event("startup")
 async def startup_event():
@@ -52,6 +54,21 @@ async def startup_event():
     # 确保上传目录存在
     os.makedirs("app/static/uploads", exist_ok=True)
     os.makedirs("app/static/processed", exist_ok=True)
+    # 相似图检索所需目录
+    try:
+        from app.core.config import settings as _settings
+        os.makedirs(_settings.image_library_dir, exist_ok=True)
+        os.makedirs(_settings.chroma_db_dir, exist_ok=True)
+    except Exception as e:
+        logger.warning(f"创建相似图目录失败: {e}")
+
+    # 预热相似图索引（幂等、失败不影响主流程）
+    try:
+        from app.services.similarity_index import similarity_index
+        similarity_index.initialize()
+        logger.info("相似图索引已就绪（复用持久化集合）")
+    except Exception as e:
+        logger.warning(f"相似图索引初始化失败（可稍后重试）: {e}")
 
     # 兼容历史数据：将旧的大写状态值规范化为小写（与枚举一致）
     try:
